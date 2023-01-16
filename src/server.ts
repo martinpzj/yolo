@@ -1,30 +1,21 @@
 import express from 'express'
-import winston from 'winston'
-import * as expressWinston from 'express-winston'
 import morgan from 'morgan'
+import bodyParser from 'body-parser'
 import logger from './utils'
+import * as dotenv from 'dotenv'
+import { StatusCodes } from 'http-status-codes'
+import { RestaurantSuggestionService } from './service'
+import { restaurantSuggestionRequest } from './types'
+
+dotenv.config()
 
 const app = express()
 const port = 7777
 
-// Using expressWinston package, this logs all http requests to the server but not sure
-// if this is what I want if to use a logger all throughout the app
-// app.use(
-//   expressWinston.logger({
-//     transports: [new winston.transports.Console()],
-//     format: winston.format.combine(
-//       winston.format.colorize(),
-//       winston.format.json()
-//     ),
-//     meta: true, // optional: control whether you want to log the meta data about the request (default to true)
-//     msg: 'HTTP {{req.method}} {{req.url}}', // optional: customize the default logging message. E.g. "{{res.statusCode}} {{req.method}} {{res.responseTime}}ms {{req.url}}"
-//     expressFormat: true, // Use the default Express/morgan request formatting. Enabling this will override any msg if true. Will only output colors with colorize set to true
-//     colorize: false, // Color the text and status code, using the Express/morgan color palette (text: gray, status: default green, 3XX cyan, 4XX yellow, 5XX red).
-//     ignoreRoute: function (req, res) {
-//       return false
-//     } // optional: allows to skip some log messages based on request and/or response
-//   })
-// )
+const baseUrl = process.env.BASE_URL ?? ''
+const apiKey = process.env.API_KEY ?? ''
+const clientId = process.env.CLIENT_ID ?? ''
+const service = new RestaurantSuggestionService(baseUrl, apiKey, clientId)
 
 const morganMiddleware = morgan(
   ':method :url :status :res[content-length] - :response-time ms',
@@ -37,16 +28,21 @@ const morganMiddleware = morgan(
 )
 
 app.use(morganMiddleware)
+app.use(bodyParser.json())
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
+app.post('/restaurants', async (req, res) => {
+  const requestBody = req.body as restaurantSuggestionRequest
 
-app.get('/test', (req, res) => {
-  logger.info('TESTING LOGGER')
-  res.json({ hello: 'world' })
+  try {
+    const suggestions = await service.restaurantSuggestions(requestBody)
+
+    res.sendStatus(StatusCodes.OK)
+  } catch (e) {
+    logger.error(`${e}`)
+    res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+  }
 })
 
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`)
+  logger.info(`Server listening on port ${port}`)
 })
