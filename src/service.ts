@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
 import { StatusCodes } from 'http-status-codes'
-import fs from 'fs'
 import {
   Business,
   Restaurant,
@@ -9,20 +8,15 @@ import {
   yelpResponse
 } from './types'
 import logger from './utils'
-import { DATA_STORE_PATH } from './constants'
 
 export class RestaurantSuggestionService {
   private readonly httpClient: AxiosInstance
   private readonly clientId: string
   private readonly apiKey: string
-  private readonly dataStore?: yelpResponse
+  private responseCache?: yelpResponse
+  private requestCache?: restaurantSuggestionRequest
 
-  constructor(
-    baseUrl: string,
-    apiKey: string,
-    clientId: string,
-    dataStore?: yelpResponse
-  ) {
+  constructor(baseUrl: string, apiKey: string, clientId: string) {
     if (!baseUrl || !clientId || !apiKey) {
       throw new Error(
         `Failed to create service... BaseUrl, ClientId, and ApiKey must not be empty`
@@ -31,7 +25,6 @@ export class RestaurantSuggestionService {
 
     this.clientId = clientId
     this.apiKey = apiKey
-    this.dataStore = dataStore
     this.httpClient = axios.create({
       baseURL: baseUrl,
       validateStatus: (_) => {
@@ -62,19 +55,27 @@ export class RestaurantSuggestionService {
     }
   }
 
+  private isSameAsPreviousRequest(request: restaurantSuggestionRequest) {
+    // If this is the first request since the server started
+    if (!this.requestCache) {
+      this.requestCache = request
+      return false
+    }
+    return JSON.stringify(request) === JSON.stringify(this.requestCache)
+  }
+
   public async restaurantSuggestions(
     request: restaurantSuggestionRequest
   ): Promise<restaurantSuggestionResponse> {
-    logger.info('Invoking suggestions function...')
-
-    if (this.dataStore) {
-      logger.info(`Using internal data store`)
-      return this.transform(this.dataStore.businesses)
+    if (this.isSameAsPreviousRequest(request) && this.responseCache) {
+      logger.info(`Similar request from before, using response cache...`)
+      return this.transform(this.responseCache.businesses)
     }
 
-    logger.info(
-      `Did not find file ${DATA_STORE_PATH}, attempting to retrieve data`
-    )
+    if (!this.isSameAsPreviousRequest(request)) {
+      logger.info(`Different request from before, retrieving data`)
+      this.requestCache = request
+    }
 
     const response = await this.httpClient({
       method: 'get',
@@ -92,33 +93,8 @@ export class RestaurantSuggestionService {
       )
     }
 
-    const restaurants = response.data as yelpResponse
+    this.responseCache = response.data as yelpResponse
 
-    fs.writeFile(
-      DATA_STORE_PATH,
-      JSON.stringify(restaurants, null, 2) + '\n',
-      (err) => {
-        if (err) {
-          throw new Error(
-            `Failed to write data to ${DATA_STORE_PATH}. Error=${err}`
-          )
-        }
-      }
-    )
-
-    return this.transform(restaurants.businesses)
+    return this.transform(this.responseCache.businesses)
   }
 }
-
-/**
- * THOUGHTS:
- * - One thing I definitely don't want to keep doing is sending a request to Yelp
- * everytime I get invoked. It's slow and wastes my API limit. I could potentially just
- * store the replies in a file and retrieve them if successive calls are made.
- *      -> If the user makes a request with different parameters then the file we created is
- *         stale and we'd have to make a request to get new data and write that file?
- * - I should also give the user the option to request how many suggestions they want to get get back.
- * Maybe provide a hard limit of like 10... idk
- * - Should also expose other fields in the request so the user can provide what kind of food
- * they're looking for, rating range, price range, etc.
- */
