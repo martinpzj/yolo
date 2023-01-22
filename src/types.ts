@@ -12,8 +12,8 @@ export interface Restaurant {
   readonly name: string
   readonly rating: number
   readonly price: string
-  readonly distance: number
-  readonly address: string
+  readonly distance: string
+  readonly address: string[]
   readonly url: string
 }
 
@@ -34,7 +34,7 @@ export interface Business {
   coordinates: Record<string, number>
   transactions: string[]
   price: string
-  location: Record<string, string>
+  location: Record<string, any>
   phone: string
   display_phone: string
   distance: number

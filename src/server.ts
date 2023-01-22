@@ -36,7 +36,7 @@ app.post('/restaurants', async (req, res) => {
   try {
     const suggestions = await service.restaurantSuggestions(requestBody)
 
-    res.sendStatus(StatusCodes.OK)
+    res.send(suggestions)
   } catch (e) {
     logger.error(`${e}`)
     res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR)

@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios'
 import { StatusCodes } from 'http-status-codes'
 import {
   Business,
+  Restaurant,
   restaurantSuggestionRequest,
   restaurantSuggestionResponse,
   yelpResponse
@@ -32,16 +33,26 @@ export class RestaurantSuggestionService {
     })
   }
 
-  /**
-   * So at this point we have an array of Businesses that match the criteria
-   * we sent in the request. So from here, as a starting point and first attempt
-   * for this project. I should just select one item at random from the list, tranform it
-   * to give me only the information I want, and return that.
-   * @param data
-   * @returns
-   */
-  private transform(data: Business[]): restaurantSuggestionResponse[] {
-    return [] as restaurantSuggestionResponse[]
+  private transform(businesses: Business[]): restaurantSuggestionResponse {
+    //only take one business from the array of Businesses and transform that for now
+    const randomSuggestion =
+      businesses[Math.floor(Math.random() * businesses.length)]
+
+    //convert from meters to miles
+    const distance = (Math.round(randomSuggestion.distance) / 1609).toFixed(2)
+
+    const restaurant = {
+      name: randomSuggestion.name,
+      price: randomSuggestion.price,
+      rating: randomSuggestion.rating,
+      url: randomSuggestion.url,
+      address: randomSuggestion.location['display_address'],
+      distance
+    } as Restaurant
+
+    return {
+      restaurants: [restaurant]
+    }
   }
 
   public async restaurantSuggestions(
@@ -66,9 +77,7 @@ export class RestaurantSuggestionService {
     }
 
     const restaurants = response.data as yelpResponse
-    //transform to possible options and just return one for now?
-    const suggestion = this.transform(restaurants.businesses)
 
-    return {} as restaurantSuggestionResponse
+    return this.transform(restaurants.businesses)
   }
 }
