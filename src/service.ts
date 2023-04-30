@@ -7,7 +7,7 @@ import {
   restaurantSuggestionResponse,
   yelpResponse
 } from './types'
-import logger from './utils'
+import logger from './logger'
 
 export class RestaurantSuggestionService {
   private readonly httpClient: AxiosInstance
@@ -45,6 +45,7 @@ export class RestaurantSuggestionService {
       name: randomSuggestion.name,
       price: randomSuggestion.price,
       rating: randomSuggestion.rating,
+      reviewCount: randomSuggestion.review_count,
       url: randomSuggestion.url,
       address: randomSuggestion.location['display_address'],
       distance

@@ -1,7 +1,7 @@
 import express from 'express'
 import morgan from 'morgan'
 import bodyParser from 'body-parser'
-import logger from './utils'
+import logger from './logger'
 import * as dotenv from 'dotenv'
 import { StatusCodes } from 'http-status-codes'
 import { RestaurantSuggestionService } from './service'

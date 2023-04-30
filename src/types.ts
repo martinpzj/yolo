@@ -1,3 +1,5 @@
+// TODO: should probably split this data type into two. One for the user request to the 
+// server and other for the request to the downstream API
 export interface restaurantSuggestionRequest {
   readonly location: string
   readonly latitude: string
@@ -6,12 +8,19 @@ export interface restaurantSuggestionRequest {
   readonly limit: string
   readonly offset: string
   readonly price?: number[]
+  /**
+   * Search term, e.g. "food" or "restaurants". May also be the 
+   * business name "Starbucks"
+   */
+  readonly term?: string
+  readonly open_now?: boolean
 }
 
 export interface Restaurant {
   readonly name: string
   readonly rating: number
   readonly price: string
+  readonly reviewCount: string
   readonly distance: string
   readonly address: string[]
   readonly url: string
@@ -28,7 +37,7 @@ export interface Business {
   image_url: string
   is_closed: boolean
   url: string
-  review_count: number
+  review_count: string
   categories: Record<string, string>[]
   rating: number
   coordinates: Record<string, number>
