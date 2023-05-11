@@ -7,6 +7,7 @@ import {
   restaurantSuggestionResponse,
   yelpResponse
 } from './types'
+import { metersToMiles } from './utils'
 import logger from './logger'
 
 export class RestaurantSuggestionService {
@@ -38,8 +39,7 @@ export class RestaurantSuggestionService {
     const randomSuggestion =
       businesses[Math.floor(Math.random() * businesses.length)]
 
-    //convert from meters to miles
-    const distance = (Math.round(randomSuggestion.distance) / 1609).toFixed(2)
+    const distance = metersToMiles(randomSuggestion.distance)
 
     const restaurant = {
       name: randomSuggestion.name,
@@ -88,8 +88,7 @@ export class RestaurantSuggestionService {
 
     if (response.status !== StatusCodes.OK) {
       throw new Error(
-        `Yelp request failed with status=${
-          response.status
+        `Yelp request failed with status=${response.status
         }. Error=${JSON.stringify(response.data)}`
       )
     }
