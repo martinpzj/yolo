@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import { StatusCodes } from 'http-status-codes'
+import NodeCache from 'node-cache'
 import {
   Business,
   Restaurant,
@@ -14,8 +15,8 @@ export class RestaurantSuggestionService {
   private readonly httpClient: AxiosInstance
   private readonly clientId: string
   private readonly apiKey: string
-  private responseCache?: yelpResponse
   private requestCache?: restaurantSuggestionRequest
+  private suggestionsCache: NodeCache
 
   constructor(baseUrl: string, apiKey: string, clientId: string) {
     if (!baseUrl || !clientId || !apiKey) {
@@ -26,6 +27,7 @@ export class RestaurantSuggestionService {
 
     this.clientId = clientId
     this.apiKey = apiKey
+    this.suggestionsCache = new NodeCache()
     this.httpClient = axios.create({
       baseURL: baseUrl,
       validateStatus: (_) => {
@@ -34,10 +36,13 @@ export class RestaurantSuggestionService {
     })
   }
 
-  private transform(businesses: Business[]): restaurantSuggestionResponse {
-    //only take one business from the array of Businesses and transform that for now
-    const randomSuggestion =
-      businesses[Math.floor(Math.random() * businesses.length)]
+  private randomTransformedSuggestion(): restaurantSuggestionResponse {
+    const { keys } = this.suggestionsCache.getStats()
+    const allStoredKeys = this.suggestionsCache.keys()
+    const randomKey = allStoredKeys[Math.floor(Math.random() * keys)]
+
+    const randomSuggestion = this.suggestionsCache.take<Business>(randomKey)!
+    logger.info(`Remaining suggestions = ${this.suggestionsCache.keys().length}`)
 
     const distance = metersToMiles(randomSuggestion.distance)
 
@@ -56,6 +61,12 @@ export class RestaurantSuggestionService {
     }
   }
 
+  private cacheRawSuggestions(businesses: Business[]): void {
+    businesses.forEach((business) => {
+      this.suggestionsCache.set<Business>(business.name, business)
+    })
+  }
+
   private isSameAsPreviousRequest(request: restaurantSuggestionRequest) {
     // If this is the first request since the server started
     if (!this.requestCache) {
@@ -68,14 +79,18 @@ export class RestaurantSuggestionService {
   public async restaurantSuggestions(
     request: restaurantSuggestionRequest
   ): Promise<restaurantSuggestionResponse> {
-    if (this.isSameAsPreviousRequest(request) && this.responseCache) {
-      logger.info(`Similar request from before, using response cache...`)
-      return this.transform(this.responseCache.businesses)
+    if (this.isSameAsPreviousRequest(request) && this.suggestionsCache.keys().length > 0) {
+      logger.info(`Similar request from before, using response cache`)
+      return this.randomTransformedSuggestion()
     }
-
-    if (!this.isSameAsPreviousRequest(request)) {
-      logger.info(`Different request from before, retrieving data`)
+    else if (!this.isSameAsPreviousRequest(request)) {
+      logger.info(`Different request from before, flushing cache and retrieving new data`)
+      this.suggestionsCache.flushAll()
       this.requestCache = request
+    }
+    else {
+      logger.info(`Cache contains 0 keys, retrieving data`)
+      // need to add some logic to get the next 50 in line
     }
 
     const response = await this.httpClient({
@@ -88,13 +103,16 @@ export class RestaurantSuggestionService {
 
     if (response.status !== StatusCodes.OK) {
       throw new Error(
-        `Yelp request failed with status=${response.status
+        `Yelp request failed with status=${
+          response.status
         }. Error=${JSON.stringify(response.data)}`
       )
     }
 
-    this.responseCache = response.data as yelpResponse
+    const { businesses } = response.data as yelpResponse
 
-    return this.transform(this.responseCache.businesses)
+    this.cacheRawSuggestions(businesses)
+
+    return this.randomTransformedSuggestion()
   }
 }
