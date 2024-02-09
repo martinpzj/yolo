@@ -1,5 +1,8 @@
 // TODO: should probably split this data type into two. One for the user request to the 
 // server and other for the request to the downstream API
+
+// TODO: should also write down all the field descriptions from the documentation so i don't 
+// forget what they are
 export interface restaurantSuggestionRequest {
   // You can just provide a general location like: Phoenix, AZ instead of a specific location
   // But could kep latitude and longitude in case you want something around you
@@ -8,8 +11,8 @@ export interface restaurantSuggestionRequest {
   readonly longitude: string
   readonly radius: string
   readonly limit: string
-  readonly offset: string
-  readonly price?: number[]
+  readonly offset?: string
+  readonly price?: string
   /**
    * Search term, e.g. "food" or "restaurants". May also be the 
    * business name "Starbucks"
